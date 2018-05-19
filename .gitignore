@@ -3,6 +3,7 @@
 *.dll
 *.so
 *.dylib
+*.db
 
 # Test binary, build with `go test -c`
 *.test
@@ -12,3 +13,5 @@
 
 # Vendored dependencies
 vendor/
+
+blockchain

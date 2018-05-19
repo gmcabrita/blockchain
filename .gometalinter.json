@@ -1,9 +1,0 @@
-{
-  "Linters": {
-    "prealloc": {
-      "Command": "prealloc",
-      "Pattern": "^(?P<path>.*?\\.go):(?P<line>\\d+)\\s*(?P<message>.*)$"
-    }
-  },
-  "LineLength": 120
-}

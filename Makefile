@@ -11,7 +11,7 @@ lintdeps:
 
 # lints the project
 lint:
-	gometalinter --linter="prealloc:prealloc:^(?P<path>.*?\\.go):(?P<line>\\d+)\\s*(?P<message>.*)$$" --enable-all --enable=prealloc ./...;
+	gometalinter --vendor --linter="prealloc:prealloc:^(?P<path>.*?\\.go):(?P<line>\\d+)\\s*(?P<message>.*)$$" --enable=prealloc --disable=vetshadow --line-length=120 ./...;
 
 # installs test dependencies
 testdeps:
