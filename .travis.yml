@@ -9,13 +9,11 @@ matrix:
     - go: tip
 install:
   - make deps
-  - make testdeps
   - make lintdeps
 script:
   - make lint
   - make test
 after_success:
-  - goveralls -coverprofile=coverage.out -service=travis-pro
   - wget https://raw.githubusercontent.com/k3rn31p4nic/travis-ci-discord-webhook/master/send.sh
   - chmod +x send.sh
   - ./send.sh success $WEBHOOK_URL
