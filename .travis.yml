@@ -1,0 +1,19 @@
+language: go
+sudo: false
+go:
+  - 1.x
+  - tip
+matrix:
+  fast_finish: true
+  allow_failures:
+    - go: tip
+install:
+  - make deps
+  - make testdeps
+  - make lintdeps
+script:
+  - make lint
+  - make test
+after_success:
+  - goveralls -coverprofile=coverage.out -service=travis-ci
+  
