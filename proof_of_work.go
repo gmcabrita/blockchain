@@ -9,7 +9,7 @@ import (
 )
 
 // Block mining difficulty
-const targetBits = 24 // TODO: implement target adjusting algorithm
+const targetBits = 12 // TODO: implement target adjusting algorithm
 const maxNonce = math.MaxInt64
 
 // ProofOfWork represents a proof of work
