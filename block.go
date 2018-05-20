@@ -32,6 +32,17 @@ func NewGenesisBlock() *Block {
 	return NewBlock("init", []byte{})
 }
 
+// Equal compares two blocks, returning true if they contain the same values
+func (b *Block) Equal(o *Block) bool {
+	cmpTimestamp := b.Timestamp == o.Timestamp
+	cmpData := bytes.Equal(b.Data, o.Data)
+	cmpPrevBlockHash := bytes.Equal(b.PrevBlockHash, o.PrevBlockHash)
+	cmpHash := bytes.Equal(b.Hash, o.Hash)
+	cmpNonce := b.Nonce == o.Nonce
+
+	return cmpTimestamp && cmpData && cmpPrevBlockHash && cmpHash && cmpNonce
+}
+
 // Serialize serializes a Block to its disk storage format
 func (b *Block) Serialize() ([]byte, error) {
 	var result bytes.Buffer
