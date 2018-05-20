@@ -1,6 +1,7 @@
 package main
 
 import (
+	"encoding/hex"
 	"os"
 
 	"github.com/pkg/errors"
@@ -110,6 +111,101 @@ func CreateBlockchain(address string) (*Blockchain, error) {
 	return &bc, nil
 }
 
+// FindUnspentTransactions returns a list of transactions containing unspent outputs
+func (bc *Blockchain) FindUnspentTransactions(address string) ([]Transaction, error) {
+	var unspentTXs []Transaction
+	spentTXOs := make(map[string][]int)
+	i := bc.Iterator()
+
+	for {
+		block, err := i.Next()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get next block in the chain")
+		}
+
+		for _, tx := range block.Transactions {
+			txID := hex.EncodeToString(tx.ID)
+
+		Outputs:
+			for outIdx, out := range tx.Vout {
+				if spentTXOs[txID] != nil {
+					for _, spentOut := range spentTXOs[txID] {
+						if spentOut == outIdx {
+							continue Outputs
+						}
+					}
+				}
+
+				if out.CanBeUnlockedWith(address) {
+					unspentTXs = append(unspentTXs, *tx)
+				}
+			}
+
+			if !tx.IsCoinbase() {
+				for _, in := range tx.Vin {
+					if in.CanUnlockOutputWith(address) {
+						inTxID := hex.EncodeToString(in.Txid)
+						spentTXOs[inTxID] = append(spentTXOs[inTxID], in.Vout)
+					}
+				}
+			}
+		}
+
+		if len(block.PrevBlockHash) == 0 {
+			break
+		}
+	}
+
+	return unspentTXs, nil
+}
+
+// FindSpendableOutputs finds and returns unspent outputs to reference in inputs
+func (bc *Blockchain) FindSpendableOutputs(address string, amount int) (int, map[string][]int, error) {
+	unspentOutputs := make(map[string][]int)
+	unspentTXs, err := bc.FindUnspentTransactions(address)
+	if err != nil {
+		return 0, nil, errors.Wrap(err, "failed to find unspent transactions")
+	}
+	accumulated := 0
+
+Work:
+	for _, tx := range unspentTXs {
+		txID := hex.EncodeToString(tx.ID)
+
+		for outIdx, out := range tx.Vout {
+			if out.CanBeUnlockedWith(address) && accumulated < amount {
+				accumulated += out.Value
+				unspentOutputs[txID] = append(unspentOutputs[txID], outIdx)
+
+				if accumulated >= amount {
+					break Work
+				}
+			}
+		}
+	}
+
+	return accumulated, unspentOutputs, nil
+}
+
+// FindUTXO finds and returns all unspent transaction outputs
+func (bc *Blockchain) FindUTXO(address string) ([]TXOutput, error) {
+	var UTXOs []TXOutput
+	unspentTransactions, err := bc.FindUnspentTransactions(address)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find unspent transactions")
+	}
+
+	for _, tx := range unspentTransactions {
+		for _, out := range tx.Vout {
+			if out.CanBeUnlockedWith(address) {
+				UTXOs = append(UTXOs, out)
+			}
+		}
+	}
+
+	return UTXOs, nil
+}
+
 // MineBlock mines a new block with the provided transactions
 func (bc *Blockchain) MineBlock(transactions []*Transaction) error {
 	var lastHash []byte
@@ -178,4 +274,15 @@ func (i *BlockchainIterator) Next() (*Block, error) {
 
 	i.currentHash = block.PrevBlockHash
 	return block, err
+}
+
+// Close closes the blockchain db, if it exists
+func (bc *Blockchain) Close() {
+	if bc != nil && bc.db != nil {
+		err := bc.db.Close()
+
+		if err != nil {
+			panic(err)
+		}
+	}
 }

@@ -6,8 +6,7 @@ import (
 )
 
 func main() {
-	cli := CLI{}
-	err := cli.Run()
+	err := RunCLI()
 	if err != nil {
 		fmt.Println(err.Error())
 		os.Exit(1)
