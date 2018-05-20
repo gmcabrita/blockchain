@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/gob"
 	"time"
 )
@@ -9,15 +10,15 @@ import (
 // Block represents a block in the chain
 type Block struct {
 	Timestamp     int64
-	Data          []byte
+	Transactions  []*Transaction
 	PrevBlockHash []byte
 	Hash          []byte
 	Nonce         int
 }
 
 // NewBlock creates a new Block
-func NewBlock(data string, prevBlockHash []byte) *Block {
-	block := &Block{time.Now().Unix(), []byte(data), prevBlockHash, []byte{}, 0}
+func NewBlock(transactions []*Transaction, prevBlockHash []byte) *Block {
+	block := &Block{time.Now().Unix(), transactions, prevBlockHash, []byte{}, 0}
 	pow := NewProofOfWork(block)
 	nonce, hash := pow.Run()
 
@@ -28,19 +29,21 @@ func NewBlock(data string, prevBlockHash []byte) *Block {
 }
 
 // NewGenesisBlock creates a genesis block
-func NewGenesisBlock() *Block {
-	return NewBlock("init", []byte{})
+func NewGenesisBlock(coinbase *Transaction) *Block {
+	return NewBlock([]*Transaction{coinbase}, []byte{})
 }
 
-// Equal compares two blocks, returning true if they contain the same values
-func (b *Block) Equal(o *Block) bool {
-	cmpTimestamp := b.Timestamp == o.Timestamp
-	cmpData := bytes.Equal(b.Data, o.Data)
-	cmpPrevBlockHash := bytes.Equal(b.PrevBlockHash, o.PrevBlockHash)
-	cmpHash := bytes.Equal(b.Hash, o.Hash)
-	cmpNonce := b.Nonce == o.Nonce
+// HashTransactions returns a byte array with the block's hashes transactions
+func (b *Block) HashTransactions() []byte {
+	var txHashes = make([][]byte, len(b.Transactions))
+	var txHash [32]byte
 
-	return cmpTimestamp && cmpData && cmpPrevBlockHash && cmpHash && cmpNonce
+	for _, tx := range b.Transactions {
+		txHashes = append(txHashes, tx.ID)
+	}
+	txHash = sha256.Sum256(bytes.Join(txHashes, []byte{}))
+
+	return txHash[:]
 }
 
 // Serialize serializes a Block to its disk storage format

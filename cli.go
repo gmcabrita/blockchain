@@ -9,9 +9,7 @@ import (
 )
 
 // CLI represents the command line interface for the blockahin
-type CLI struct {
-	bc *Blockchain
-}
+type CLI struct{}
 
 // Run is the entrypoint of the CLI tool
 func (cli *CLI) Run() error {
@@ -20,33 +18,31 @@ func (cli *CLI) Run() error {
 		return err
 	}
 
-	addBlockCmd := flag.NewFlagSet("add", flag.ContinueOnError)
-	printChainCmd := flag.NewFlagSet("print", flag.ContinueOnError)
+	createBlockchainCmd := flag.NewFlagSet("createblockchain", flag.ContinueOnError)
+	printChainCmd := flag.NewFlagSet("printchain", flag.ContinueOnError)
 
-	addBlockData := addBlockCmd.String("data", "", "Block data")
+	createBlockchainAddress := createBlockchainCmd.String("address", "", "The address to send the genesis block to")
 
 	switch os.Args[1] {
-	case "add":
-		err := addBlockCmd.Parse(os.Args[2:])
+	case "createblockchain":
+		err := createBlockchainCmd.Parse(os.Args[2:])
 		if err != nil {
-			return errors.New("failed to parse add command")
+			return errors.New("failed to parse createblockchain command")
 		}
 
-		if *addBlockData == "" {
-			addBlockCmd.Usage()
-			return errors.New("bad data")
+		if *createBlockchainAddress == "" {
+			createBlockchainCmd.Usage()
+			return errors.New("bad address")
 		}
 
-		err = cli.addBlock(*addBlockData)
+		err = cli.createBlockchain(*createBlockchainAddress)
 		if err != nil {
 			return err
 		}
-
-		fmt.Println("Successfully added the block!")
-	case "print":
+	case "printchain":
 		err := printChainCmd.Parse(os.Args[2:])
 		if err != nil {
-			return errors.New("failed to parse print command")
+			return errors.New("failed to parse printchain command")
 		}
 
 		err = cli.printChain()
@@ -63,8 +59,8 @@ func (cli *CLI) Run() error {
 
 func (cli *CLI) printUsage() {
 	fmt.Println("Usage:")
-	fmt.Println("  add -data DATA - add a block to the blockchain")
-	fmt.Println("  print          - print all the blocks in the blockchain")
+	fmt.Println("  createblockchain -address ADDRESS - Create a new blockchain and generate a genesis block")
+	fmt.Println("  printchain                        - print all the blocks in the blockchain")
 }
 
 func (cli *CLI) validateArgs() error {
@@ -75,17 +71,42 @@ func (cli *CLI) validateArgs() error {
 	return nil
 }
 
-func (cli *CLI) addBlock(data string) error {
-	err := cli.bc.AddBlock(data)
+func (cli *CLI) createBlockchain(address string) error {
+	bc, err := CreateBlockchain(address)
+	defer func() {
+		if bc != nil && bc.db != nil {
+			err := bc.db.Close()
+
+			if err != nil {
+				panic(err)
+			}
+		}
+	}()
+
 	if err != nil {
-		return errors.Wrap(err, "failed to add block")
+		return errors.Wrap(err, "failed to create blockchain")
 	}
 
 	return nil
 }
 
 func (cli *CLI) printChain() error {
-	i := cli.bc.Iterator()
+	bc, err := NewBlockchain("")
+	defer func() {
+		if bc != nil && bc.db != nil {
+			err := bc.db.Close()
+
+			if err != nil {
+				panic(err)
+			}
+		}
+	}()
+
+	if err != nil {
+		return errors.Wrap(err, "failed to read blockchain from disk")
+	}
+
+	i := bc.Iterator()
 
 	for {
 		block, err := i.Next()
@@ -94,7 +115,6 @@ func (cli *CLI) printChain() error {
 		}
 
 		fmt.Printf("Previous hash: %x\n", block.PrevBlockHash)
-		fmt.Printf("Data: %s\n", block.Data)
 		fmt.Printf("Hash: %x\n", block.Hash)
 		pow := NewProofOfWork(block)
 		fmt.Printf("Valid: %v\n", pow.Validate())
